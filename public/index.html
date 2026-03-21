@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Votación</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            padding: 50px;
+        }
+
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 24px;
+            text-align: center;
+        }
+
+        .question {
+            margin-bottom: 20px;
+            font-weight: bold;
+            font-size: 18px;
+            color: #444;
+        }
+
+        .option {
+            margin-bottom: 10px;
+        }
+
+        .option label {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            width: 100%;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .message {
+            margin-top: 15px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .success {
+            color: green;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .results-container {
+            margin-top: 40px;
+            border-top: 2px solid #eee;
+            padding-top: 20px;
+            display: none;
+        }
+
+        .result-card {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .result-question {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .result-option {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px dashed #ccc;
+        }
+
+        .result-option:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>Votación Activa</h1>
+        <form id="votingForm" style="display: none;">
+            <div id="questionContainer" class="question">Cargando pregunta...</div>
+            <div id="optionsContainer">
+                <!-- Las opciones se generarán aquí con JavaScript -->
+            </div>
+            <button type="submit" id="submitBtn">Enviar Voto</button>
+        </form>
+        <div id="statusMessage" class="message">Cargando...</div>
+
+        <div id="resultsContainer" class="results-container">
+            <h2>Resultados Anteriores</h2>
+            <div id="resultsList"></div>
+        </div>
+    </div>
+
+    <script>
+        const GET_QUESTIONS_URL = '/api/questions';
+        const SUBMIT_VOTE_URL = '/api/vote';
+
+        let currentQuestionId = null;
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlClave = urlParams.get('clave');
+
+        async function fetchQuestions() {
+            if (!urlClave) {
+                showStatus('Acceso denegado: Necesitas ingresar usando el link único de tu apartamento.', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${GET_QUESTIONS_URL}?clave=${encodeURIComponent(urlClave)}`);
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        showStatus('No hay votaciones activas en este momento.', 'error');
+                        return;
+                    }
+                    if (response.status === 403 || response.status === 401) {
+                        const errData = await response.json();
+                        showStatus(errData.error, 'error');
+                        return;
+                    }
+                    throw new Error('Error de red');
+                }
+
+                const data = await response.json();
+
+                if (data && data.pregunta) {
+                    currentQuestionId = data.id;
+                    document.getElementById('questionContainer').textContent = data.pregunta;
+
+                    // Mostrar info del apartamento
+                    const aptoInfo = document.createElement('div');
+                    aptoInfo.style.marginBottom = '10px';
+                    aptoInfo.style.color = '#0056b3';
+                    aptoInfo.style.fontWeight = 'bold';
+                    aptoInfo.textContent = `Votando como: Bloque ${data.bloque} - Apartamento ${data.apartamento} - ${data.nombre} (Coeficiente: ${data.coeficiente})`;
+                    document.getElementById('questionContainer').parentNode.insertBefore(aptoInfo, document.getElementById('questionContainer'));
+
+                    const optionsContainer = document.getElementById('optionsContainer');
+                    optionsContainer.innerHTML = '';
+
+                    if (Array.isArray(data.opciones)) {
+                        data.opciones.forEach(opcionObj => {
+                            const div = document.createElement('div');
+                            div.className = 'option';
+                            div.innerHTML = `
+                            <label>
+                                <input type="radio" name="vote" value="${opcionObj.id}" required>
+                                ${opcionObj.opcion}
+                            </label>
+                        `;
+                            optionsContainer.appendChild(div);
+                        });
+                    }
+
+                    document.getElementById('votingForm').style.display = 'block';
+                    document.getElementById('statusMessage').style.display = 'none';
+                } else {
+                    showStatus('Error cargando los datos de la votación.', 'error');
+                }
+            } catch (error) {
+                console.error('Error fetching questions:', error);
+                showStatus('Error al cargar la votación.', 'error');
+            }
+        }
+
+        async function fetchResults() {
+            if (!urlClave) return;
+
+            try {
+                const response = await fetch(`/api/results?clave=${encodeURIComponent(urlClave)}`);
+                if (response.ok) {
+                    const data = await response.json();
+
+                    if (data.length > 0) {
+                        const resultsContainer = document.getElementById('resultsContainer');
+                        const resultsList = document.getElementById('resultsList');
+                        resultsList.innerHTML = '';
+
+                        data.forEach(item => {
+                            const card = document.createElement('div');
+                            card.className = 'result-card';
+
+                            let html = `<div class="result-question">${item.pregunta}</div>`;
+
+                            item.opciones.forEach(opt => {
+                                const percentage = parseFloat(opt.suma_coeficientes).toFixed(2);
+                                html += `
+                                    <div class="result-option">
+                                        <span>${opt.opcion} (${opt.cantidad_votos} votos)</span>
+                                        <strong>${percentage}%</strong>
+                                    </div>
+                                `;
+                            });
+
+                            card.innerHTML = html;
+                            resultsList.appendChild(card);
+                        });
+
+                        resultsContainer.style.display = 'block';
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching results:', error);
+            }
+        }
+
+        document.getElementById('votingForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            if (!urlClave) {
+                showStatus('Falta la clave del apartamento.', 'error');
+                return;
+            }
+
+            const selectedOption = document.querySelector('input[name="vote"]:checked').value;
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.textContent = 'Enviando...';
+
+            try {
+                const response = await fetch(SUBMIT_VOTE_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        questionId: currentQuestionId,
+                        optionId: selectedOption,
+                        clave: urlClave
+                    })
+                });
+
+                if (response.ok) {
+                    document.getElementById('votingForm').style.display = 'none';
+                    showStatus('¡Gracias! Tu voto ha sido registrado correctamente.', 'success');
+                } else {
+                    const errData = await response.json();
+                    throw new Error(errData.error || 'Error al enviar el voto');
+                }
+            } catch (error) {
+                console.error('Error enviando voto:', error);
+                showStatus(error.message || 'Hubo un error al enviar tu voto. Intenta de nuevo.', 'error');
+                btn.disabled = false;
+                btn.textContent = 'Enviar Voto';
+            }
+        });
+
+        function showStatus(text, type) {
+            const msgDiv = document.getElementById('statusMessage');
+            msgDiv.textContent = text;
+            msgDiv.className = `message ${type}`;
+            msgDiv.style.display = 'block';
+        }
+
+        fetchQuestions();
+        fetchResults();
+    </script>
+
+</body>
+
+</html>

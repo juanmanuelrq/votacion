@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración - Votación</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            padding: 50px;
+        }
+
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 1000px;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 24px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #444;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+
+        button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            width: 100%;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background-color: #218838;
+        }
+
+        .message {
+            margin-top: 15px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .success {
+            color: green;
+        }
+
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>Administración: Crear Votación</h1>
+        <form id="adminForm">
+            <div class="form-group">
+                <label for="pregunta">Pregunta:</label>
+                <input type="text" id="pregunta" placeholder="Ej: ¿Qué lenguaje de programación prefieres?" required>
+            </div>
+
+            <div class="form-group">
+                <label for="opcion1">Opción 1:</label>
+                <input type="text" id="opcion1" class="opcion-input" placeholder="Ej: Python" required>
+            </div>
+            <div class="form-group">
+                <label for="opcion2">Opción 2:</label>
+                <input type="text" id="opcion2" class="opcion-input" placeholder="Ej: JavaScript" required>
+            </div>
+            <div class="form-group">
+                <label for="opcion3">Opción 3 (opcional):</label>
+                <input type="text" id="opcion3" class="opcion-input" placeholder="Opcional">
+            </div>
+            <div class="form-group">
+                <label for="opcion4">Opción 4 (opcional):</label>
+                <input type="text" id="opcion4" class="opcion-input" placeholder="Opcional">
+            </div>
+            <div class="form-group">
+                <label for="opcion5">Opción 5 (opcional):</label>
+                <input type="text" id="opcion5" class="opcion-input" placeholder="Opcional">
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button type="submit" id="submitBtn">Crear Pregunta</button>
+                <button type="button" id="simulateBtn" style="background-color: #ffc107; color: #333;">Simular Votos y
+                    Cerrar Pregunta</button>
+            </div>
+        </form>
+        <div id="statusMessage" class="message" style="display: none;"></div>
+
+        <hr style="margin: 30px 0; border: 0; border-top: 1px solid #ccc;">
+        <h2 style="color: #333; font-size: 20px; text-align: center; color: #007bff;">Preguntas Activas</h2>
+        <div id="activeQuestionsList">Cargando...</div>
+
+        <hr style="margin: 30px 0; border: 0; border-top: 1px solid #ccc;">
+        <h2 style="color: #333; font-size: 20px; text-align: center;">Preguntas Cerradas</h2>
+        <div id="closedQuestionsList">Cargando...</div>
+        <hr style="margin: 30px 0; border: 0; border-top: 1px solid #ccc;">
+        <h2 style="color: #333; font-size: 20px; text-align: center;">Gestión de Apartamentos</h2>
+        <div style="overflow-x: auto;">
+            <table id="apartmentsTable" style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                <thead>
+                    <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                        <th style="padding: 10px; text-align: left;">Bloque</th>
+                        <th style="padding: 10px; text-align: left;">Número</th>
+                        <th style="padding: 10px; text-align: left;">Nombre</th>
+                        <th style="padding: 10px; text-align: left;">Celular</th>
+                        <th style="padding: 10px; text-align: center;">Asistencia</th>
+                        <th style="padding: 10px; text-align: center;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="apartmentsList">
+                    <tr>
+                        <td colspan="6" style="text-align:center; padding: 15px;">Cargando...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal para informe de votación -->
+    <div id="reportModal"
+        style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;">
+        <div
+            style="background:white; padding:20px; border-radius:10px; width:90%; max-width:800px; max-height:80vh; overflow-y:auto; position:relative; box-sizing: border-box;">
+            <span onclick="document.getElementById('reportModal').style.display='none'"
+                style="position:absolute; top:10px; right:15px; cursor:pointer; font-size:24px; font-weight:bold; color: #333;">&times;</span>
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
+                <div>
+                    <h2 id="reportTitle" style="margin-top:0; color: #333; font-size: 22px; padding-right: 20px;">
+                        Informe de Votación</h2>
+                    <div id="reportStats" style="font-weight: bold; color: #007bff;"></div>
+                </div>
+                <button type="button" onclick="exportReportToCSV()"
+                    style="background-color: #28a745; margin-top: 0; width: auto; font-size: 14px;">Generar CSV</button>
+            </div>
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                    <thead>
+                        <tr style="background-color: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+                            <th style="padding: 10px; text-align: left;">Apto</th>
+                            <th style="padding: 10px; text-align: left;">Nombre</th>
+                            <th style="padding: 10px; text-align: left;">Coeficiente</th>
+                            <th style="padding: 10px; text-align: left;">Fecha/Hora</th>
+                            <th style="padding: 10px; text-align: left;">Respuesta Votada</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reportList">
+                        <tr>
+                            <td colspan="5" style="text-align:center; padding: 15px;">Cargando...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function createQuestionData() {
+            const pregunta = document.getElementById('pregunta').value;
+            const opcionesElements = document.querySelectorAll('.opcion-input');
+            const opciones = [];
+
+            opcionesElements.forEach(el => {
+                if (el.value.trim() !== '') {
+                    opciones.push(el.value.trim());
+                }
+            });
+
+            if (opciones.length < 2) {
+                showStatus('Debes ingresar al menos 2 opciones.', 'error');
+                return null;
+            }
+
+            return { pregunta, opciones };
+        }
+
+        document.getElementById('adminForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.textContent = 'Guardando...';
+
+            const payload = await createQuestionData();
+            if (!payload) {
+                btn.disabled = false;
+                btn.textContent = 'Crear Pregunta';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/questions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    showStatus('Pregunta creada exitosamente. Las anteriores fueron desactivadas.', 'success');
+                    document.getElementById('adminForm').reset();
+                    fetchActiveQuestions(); // Refresh active questions
+                } else {
+                    const errData = await response.json();
+                    throw new Error(errData.error || 'Error al crear la pregunta');
+                }
+            } catch (error) {
+                console.error(error);
+                showStatus(error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Crear Pregunta';
+            }
+        });
+
+        document.getElementById('simulateBtn').addEventListener('click', async function () {
+            if (!confirm('¿Deseas crear esta nueva pregunta, simular votos para todos los apartamentos y CERRARLA inmediatamente?')) return;
+
+            const btn = document.getElementById('simulateBtn');
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = 'Creando y simulando...';
+
+            try {
+                // 1. Crear la pregunta
+                const payload = await createQuestionData();
+                if (!payload) {
+                    btn.disabled = false;
+                    btn.textContent = originalText;
+                    return;
+                }
+
+                const createRes = await fetch('/api/admin/questions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!createRes.ok) {
+                    const errData = await createRes.json();
+                    throw new Error(errData.error || 'Error al crear la pregunta inicial');
+                }
+
+                // 2. Simular y cerrar
+                const response = await fetch('/api/admin/questions/simulate', { method: 'POST' });
+                if (response.ok) {
+                    const data = await response.json();
+                    showStatus(`¡Pregunta creada y simulación exitosa! Se añadieron ${data.inserted} votos y fue cerrada.`, 'success');
+                    fetchActiveQuestions();
+                    fetchClosedQuestions();
+                    document.getElementById('adminForm').reset();
+                } else {
+                    const err = await response.json();
+                    showStatus(err.error || 'Error al simular votos', 'error');
+                }
+            } catch (error) {
+                console.error(error);
+                showStatus(error.message || 'Error de red al crear y simular', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        });
+
+        function showStatus(text, type) {
+            const msgDiv = document.getElementById('statusMessage');
+            msgDiv.textContent = text;
+            msgDiv.className = `message ${type}`;
+            msgDiv.style.display = 'block';
+        }
+
+        async function fetchActiveQuestions() {
+            try {
+                const response = await fetch('/api/admin/questions/active');
+                if (response.ok) {
+                    const data = await response.json();
+                    const list = document.getElementById('activeQuestionsList');
+                    list.innerHTML = '';
+                    if (data.length === 0) {
+                        list.innerHTML = '<p style="text-align:center; color:#666;">No hay preguntas activas en este momento.</p>';
+                        return;
+                    }
+                    data.forEach(q => {
+                        const div = document.createElement('div');
+                        div.style.display = 'flex';
+                        div.style.justifyContent = 'space-between';
+                        div.style.alignItems = 'center';
+                        div.style.padding = '10px';
+                        div.style.borderBottom = '1px solid #eee';
+                        div.style.backgroundColor = '#eef7ff';
+
+                        const title = document.createElement('span');
+                        title.textContent = q.pregunta;
+                        title.style.fontWeight = 'bold';
+
+                        const btnReport = document.createElement('button');
+                        btnReport.textContent = 'Informe';
+                        btnReport.style.backgroundColor = '#17a2b8';
+                        btnReport.style.color = '#fff';
+                        btnReport.style.marginTop = '0';
+                        btnReport.style.width = 'auto';
+                        btnReport.style.padding = '8px 15px';
+                        btnReport.onclick = () => showReport(q.id, q.pregunta);
+
+                        const btn = document.createElement('button');
+                        btn.textContent = 'Cerrar Votación';
+                        btn.style.backgroundColor = '#ffc107';
+                        btn.style.color = '#333';
+                        btn.style.marginTop = '0';
+                        btn.style.width = 'auto';
+                        btn.style.padding = '8px 15px';
+                        btn.onclick = () => closeQuestion(q.id);
+
+                        const actionsDiv = document.createElement('div');
+                        actionsDiv.style.display = 'flex';
+                        actionsDiv.style.gap = '10px';
+                        actionsDiv.appendChild(btnReport);
+                        actionsDiv.appendChild(btn);
+
+                        div.appendChild(title);
+                        div.appendChild(actionsDiv);
+                        list.appendChild(div);
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching active questions', error);
+            }
+        }
+
+        async function fetchClosedQuestions() {
+            try {
+                const response = await fetch('/api/admin/questions');
+                if (response.ok) {
+                    const data = await response.json();
+                    const list = document.getElementById('closedQuestionsList');
+                    list.innerHTML = '';
+                    if (data.length === 0) {
+                        list.innerHTML = '<p style="text-align:center; color:#666;">No hay preguntas cerradas.</p>';
+                        return;
+                    }
+                    data.forEach(q => {
+                        const div = document.createElement('div');
+                        div.style.display = 'flex';
+                        div.style.justifyContent = 'space-between';
+                        div.style.alignItems = 'center';
+                        div.style.padding = '10px';
+                        div.style.borderBottom = '1px solid #eee';
+
+                        const title = document.createElement('span');
+                        title.textContent = q.pregunta;
+                        title.style.fontWeight = 'bold';
+
+                        const btnReport = document.createElement('button');
+                        btnReport.textContent = 'Informe';
+                        btnReport.style.backgroundColor = '#17a2b8';
+                        btnReport.style.color = '#fff';
+                        btnReport.style.marginTop = '0';
+                        btnReport.style.width = 'auto';
+                        btnReport.style.padding = '8px 15px';
+                        btnReport.onclick = () => showReport(q.id, q.pregunta);
+
+                        const btn = document.createElement('button');
+                        btn.textContent = 'Eliminar';
+                        btn.style.backgroundColor = '#dc3545';
+                        btn.style.marginTop = '0';
+                        btn.style.width = 'auto';
+                        btn.style.padding = '8px 15px';
+                        btn.onclick = () => deleteQuestion(q.id);
+
+                        const actionsDiv = document.createElement('div');
+                        actionsDiv.style.display = 'flex';
+                        actionsDiv.style.gap = '10px';
+                        actionsDiv.appendChild(btnReport);
+                        actionsDiv.appendChild(btn);
+
+                        div.appendChild(title);
+                        div.appendChild(actionsDiv);
+                        list.appendChild(div);
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching closed questions', error);
+            }
+        }
+
+        async function showReport(id, pregunta) {
+            document.getElementById('reportTitle').textContent = pregunta;
+            document.getElementById('reportList').innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 15px;">Cargando...</td></tr>';
+            document.getElementById('reportStats').textContent = '';
+            document.getElementById('reportModal').style.display = 'flex';
+
+            try {
+                const response = await fetch(`/api/admin/questions/${id}/report`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const list = document.getElementById('reportList');
+                    list.innerHTML = '';
+
+                    if (data.length === 0) {
+                        list.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 15px; color:#666;">No hay votos registrados para esta pregunta.</td></tr>';
+                        return;
+                    }
+
+                    // Save data globally for CSV export
+                    window.currentReportData = data;
+                    window.currentReportTitle = pregunta;
+
+                    document.getElementById('reportStats').textContent = `Total de votos: ${data.length}`;
+
+                    data.forEach(voto => {
+                        const tr = document.createElement('tr');
+                        tr.style.borderBottom = '1px solid #eee';
+                        const fechaFormat = voto.fecha_hora ? new Date(voto.fecha_hora).toLocaleString() : '';
+                        tr.innerHTML = `
+                            <td style="padding: 10px;">${voto.apartamento || ''}</td>
+                            <td style="padding: 10px;">${voto.nombre || ''}</td>
+                            <td style="padding: 10px;">${voto.coeficiente || ''}</td>
+                            <td style="padding: 10px;">${fechaFormat}</td>
+                            <td style="padding: 10px; font-weight: bold; color: #28a745;">${voto.respuesta || ''}</td>
+                        `;
+                        list.appendChild(tr);
+                    });
+                } else {
+                    document.getElementById('reportList').innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 15px; color:red;">Error al cargar el informe.</td></tr>';
+                }
+            } catch (error) {
+                console.error(error);
+                document.getElementById('reportList').innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 15px; color:red;">Error de red al cargar el informe.</td></tr>';
+            }
+        }
+
+        function exportReportToCSV() {
+            if (!window.currentReportData || window.currentReportData.length === 0) {
+                alert('No hay datos para exportar.');
+                return;
+            }
+
+            const headers = ['Apartamento', 'Nombre', 'Coeficiente', 'Fecha y Hora', 'Respuesta'];
+            const rows = window.currentReportData.map(voto => {
+                const fechaFormat = voto.fecha_hora ? new Date(voto.fecha_hora).toLocaleString() : '';
+                return [
+                    `"${voto.apartamento || ''}"`,
+                    `"${voto.nombre || ''}"`,
+                    `"${voto.coeficiente || ''}"`,
+                    `"${fechaFormat}"`,
+                    `"${voto.respuesta || ''}"`
+                ].join(',');
+            });
+
+            const csvContent = "\uFEFF" + [headers.join(','), ...rows].join('\r\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+
+            // Format filename
+            const cleanTitle = (window.currentReportTitle || 'reporte').replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            link.setAttribute("download", `informe_${cleanTitle}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        async function closeQuestion(id) {
+            if (!confirm('¿Estás seguro de que deseas CERRAR esta votación? Ya no se recibirán más votos.')) return;
+
+            try {
+                const response = await fetch(`/api/admin/questions/${id}/close`, {
+                    method: 'PUT'
+                });
+                if (response.ok) {
+                    showStatus('Votación cerrada exitosamente.', 'success');
+                    fetchActiveQuestions();
+                    fetchClosedQuestions();
+                } else {
+                    const err = await response.json();
+                    showStatus(err.error || 'Error al cerrar la votación', 'error');
+                }
+            } catch (error) {
+                console.error(error);
+                showStatus('Error de red al cerrar', 'error');
+            }
+        }
+
+        async function deleteQuestion(id) {
+            if (!confirm('¿Estás seguro de que deseas eliminar esta pregunta y todos sus votos? Esta acción no se puede deshacer.')) return;
+
+            try {
+                const response = await fetch(`/api/admin/questions/${id}`, {
+                    method: 'DELETE'
+                });
+                if (response.ok) {
+                    showStatus('Pregunta eliminada exitosamente.', 'success');
+                    fetchClosedQuestions();
+                } else {
+                    const err = await response.json();
+                    showStatus(err.error || 'Error al eliminar la pregunta', 'error');
+                }
+            } catch (error) {
+                console.error(error);
+                showStatus('Error de red al eliminar', 'error');
+            }
+        }
+
+        async function fetchApartments() {
+            try {
+                const response = await fetch('/api/admin/apartments');
+                if (response.ok) {
+                    const data = await response.json();
+                    const list = document.getElementById('apartmentsList');
+                    list.innerHTML = '';
+                    if (data.length === 0) {
+                        list.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 15px; color:#666;">No hay apartamentos registrados.</td></tr>';
+                        return;
+                    }
+                    data.forEach(apto => {
+                        const tr = document.createElement('tr');
+                        tr.style.borderBottom = '1px solid #eee';
+                        tr.id = `apto-row-${apto.id}`;
+
+                        tr.innerHTML = `
+                            <td style="padding: 10px;">${apto.bloque || ''}</td>
+                            <td style="padding: 10px;">${apto.numero || ''}</td>
+                            <td style="padding: 10px;"><span class="apto-val-nombre">${apto.nombre || ''}</span><input type="text" class="apto-input-nombre" value="${apto.nombre || ''}" style="display:none; width: 100%; padding: 5px; box-sizing: border-box;"></td>
+                            <td style="padding: 10px;"><span class="apto-val-celular">${apto.celular || ''}</span><input type="text" class="apto-input-celular" value="${apto.celular || ''}" style="display:none; width: 100%; padding: 5px; box-sizing: border-box;"></td>
+                            <td style="padding: 10px; text-align: center;">
+                                <button type="button" class="btn-attendance" onclick="toggleAttendance(${apto.id}, ${apto.asiste})" style="background-color: ${apto.asiste ? '#28a745' : '#dc3545'}; color: white; width: auto; padding: 5px 10px; margin: 0; font-size: 14px; border: none; border-radius: 4px; cursor: pointer;">
+                                    ${apto.asiste ? '✅ Confirmado' : '❌ Pendiente'}
+                                </button>
+                            </td>
+                            <td style="padding: 10px; text-align: center; display: flex; gap: 5px; justify-content: center;">
+                                <a href="/?clave=${apto.clave || ''}" target="_blank" style="background-color: #17a2b8; color: white; text-decoration: none; width: auto; padding: 5px 10px; margin: 0; font-size: 14px; border-radius: 4px; display: inline-flex; align-items: center;">Enlace</a>
+                                <button type="button" class="btn-edit" onclick="editApartment(${apto.id})" style="background-color: #007bff; width: auto; padding: 5px 10px; margin: 0; font-size: 14px;">Editar</button>
+                                <button type="button" class="btn-save" onclick="saveApartment(${apto.id})" style="background-color: #28a745; width: auto; padding: 5px 10px; margin: 0; font-size: 14px; display:none;">Guardar</button>
+                                <button type="button" class="btn-cancel" onclick="cancelEdit(${apto.id})" style="background-color: #6c757d; width: auto; padding: 5px 10px; margin: 0; font-size: 14px; display:none;">Cancelar</button>
+                            </td>
+                        `;
+                        list.appendChild(tr);
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching apartments', error);
+            }
+        }
+
+        function editApartment(id) {
+            const row = document.getElementById(`apto-row-${id}`);
+            row.querySelector('.apto-val-nombre').style.display = 'none';
+            row.querySelector('.apto-val-celular').style.display = 'none';
+            row.querySelector('.apto-input-nombre').style.display = 'block';
+            row.querySelector('.apto-input-celular').style.display = 'block';
+            row.querySelector('.btn-edit').style.display = 'none';
+            row.querySelector('.btn-save').style.display = 'block';
+            row.querySelector('.btn-cancel').style.display = 'block';
+        }
+
+        function cancelEdit(id) {
+            const row = document.getElementById(`apto-row-${id}`);
+            row.querySelector('.apto-val-nombre').style.display = 'inline';
+            row.querySelector('.apto-val-celular').style.display = 'inline';
+            row.querySelector('.apto-input-nombre').style.display = 'none';
+            row.querySelector('.apto-input-celular').style.display = 'none';
+            row.querySelector('.btn-edit').style.display = 'block';
+            row.querySelector('.btn-save').style.display = 'none';
+            row.querySelector('.btn-cancel').style.display = 'none';
+
+            // reset values
+            row.querySelector('.apto-input-nombre').value = row.querySelector('.apto-val-nombre').textContent;
+            row.querySelector('.apto-input-celular').value = row.querySelector('.apto-val-celular').textContent;
+        }
+
+        async function saveApartment(id) {
+            const row = document.getElementById(`apto-row-${id}`);
+            const nombre = row.querySelector('.apto-input-nombre').value.trim();
+            const celular = row.querySelector('.apto-input-celular').value.trim();
+
+            const btn = row.querySelector('.btn-save');
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '...';
+
+            try {
+                const response = await fetch(`/api/admin/apartments/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nombre, celular })
+                });
+
+                if (response.ok) {
+                    row.querySelector('.apto-val-nombre').textContent = nombre;
+                    row.querySelector('.apto-val-celular').textContent = celular;
+                    showStatus('Apartamento actualizado exitosamente.', 'success');
+                    cancelEdit(id);
+                } else {
+                    const err = await response.json();
+                    showStatus(err.error || 'Error al actualizar apartamento', 'error');
+                }
+            } catch (error) {
+                console.error(error);
+                showStatus('Error de red al actualizar', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        }
+
+        async function toggleAttendance(id, currentStatus) {
+            const newStatus = !currentStatus;
+
+            try {
+                const response = await fetch(`/api/admin/apartments/${id}/attendance`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ asiste: newStatus })
+                });
+
+                if (response.ok) {
+                    showStatus(`Asistencia ${newStatus ? 'confirmada' : 'revocada'} exitosamente.`, 'success');
+                    fetchApartments(); // Refresh lists
+                } else {
+                    const err = await response.json();
+                    showStatus(err.error || 'Error al actualizar asistencia', 'error');
+                }
+            } catch (error) {
+                console.error(error);
+                showStatus('Error de red al actualizar asistencia', 'error');
+            }
+        }
+
+        fetchActiveQuestions();
+        fetchClosedQuestions();
+        fetchApartments();
+    </script>
+
+</body>
+
+</html>
