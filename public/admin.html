@@ -114,10 +114,10 @@
                 <input type="text" id="opcion5" class="opcion-input" placeholder="Opcional">
             </div>
 
-            <div style="display: flex; gap: 10px; margin-top: 10px;">
-                <button type="submit" id="submitBtn">Crear Pregunta</button>
-                <button type="button" id="simulateBtn" style="background-color: #ffc107; color: #333;">Simular Votos y
-                    Cerrar Pregunta</button>
+            <div style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
+                <button type="submit" id="submitBtn" style="flex: 1; min-width: 150px;">Crear Pregunta</button>
+                <button type="button" id="simulateBtn" style="background-color: #ffc107; color: #333; flex: 1; min-width: 150px;">Simular Votos y Cerrar</button>
+                <button type="button" id="generalReportBtn" onclick="showGeneralReport()" style="background-color: #6f42c1; flex: 1; min-width: 150px;">Informe General de Asamblea</button>
             </div>
         </form>
         <div id="statusMessage" class="message" style="display: none;"></div>
@@ -165,8 +165,12 @@
                         Informe de Votación</h2>
                     <div id="reportStats" style="font-weight: bold; color: #007bff;"></div>
                 </div>
-                <button type="button" onclick="exportReportToCSV()"
-                    style="background-color: #28a745; margin-top: 0; width: auto; font-size: 14px;">Generar CSV</button>
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" onclick="exportReportToCSV()"
+                        style="background-color: #28a745; margin-top: 0; width: auto; font-size: 14px;">Generar CSV</button>
+                    <button type="button" id="exportWordBtn" onclick="exportToWordHTML()"
+                        style="background-color: #007bff; margin-top: 0; width: auto; font-size: 14px; display:none;">Exportar a Word/HTML</button>
+                </div>
             </div>
             <div style="overflow-x: auto;">
                 <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
@@ -418,8 +422,9 @@
         }
 
         async function showReport(id, pregunta) {
+            document.getElementById('exportWordBtn').style.display = 'none';
             document.getElementById('reportTitle').textContent = pregunta;
-            document.getElementById('reportList').innerHTML = '<tr><td colspan="3" style="text-align:center; padding: 15px;">Cargando...</td></tr>';
+            document.getElementById('reportList').innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 15px;">Cargando...</td></tr>';
             document.getElementById('reportStats').textContent = '';
             document.getElementById('reportModal').style.display = 'flex';
 
@@ -463,6 +468,57 @@
             }
         }
 
+        async function showGeneralReport() {
+            document.getElementById('exportWordBtn').style.display = 'none'; // Hide initially
+            document.getElementById('reportTitle').textContent = 'Informe General de Asamblea';
+            document.getElementById('reportList').innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 15px;">Generando consolidado...</td></tr>';
+            document.getElementById('reportStats').textContent = '';
+            document.getElementById('reportModal').style.display = 'flex';
+
+            try {
+                const response = await fetch('/api/admin/report/general');
+                if (response.ok) {
+                    const data = await response.json();
+                    const list = document.getElementById('reportList');
+                    list.innerHTML = '';
+
+                    // Display Stats
+                    const stats = data.stats;
+                    document.getElementById('reportStats').innerHTML = `
+                        Quórum: ${stats.asistentes} aptos (${stats.coefAsamblea.toFixed(4)}%) de ${stats.totalAptos} totales.
+                    `;
+
+                    document.getElementById('exportWordBtn').style.display = 'block';
+                    window.currentGeneralReportData = data;
+
+                    // We reuse the table but for general report we'll group by question
+                    data.results.forEach(q => {
+                        const headerTr = document.createElement('tr');
+                        headerTr.style.backgroundColor = '#f0f0f0';
+                        headerTr.innerHTML = `<td colspan="5" style="padding: 10px; font-weight: bold; color: #007bff;">Pregunta ${q.id}: ${q.pregunta}</td>`;
+                        list.appendChild(headerTr);
+
+                        q.opciones.forEach(opt => {
+                            const tr = document.createElement('tr');
+                            tr.style.borderBottom = '1px solid #eee';
+                            tr.innerHTML = `
+                                <td colspan="2" style="padding: 8px 20px;">${opt.opcion}</td>
+                                <td style="padding: 8px;">${opt.coef.toFixed(4)}%</td>
+                                <td style="padding: 8px;">${opt.votos} votos</td>
+                                <td style="padding: 8px; font-weight: bold;">${((opt.coef / (stats.coefAsamblea || 1)) * 100).toFixed(2)}% del quórum</td>
+                            `;
+                            list.appendChild(tr);
+                        });
+                    });
+                } else {
+                    document.getElementById('reportList').innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 15px; color:red;">Error al cargar el informe general.</td></tr>';
+                }
+            } catch (error) {
+                console.error(error);
+                document.getElementById('reportList').innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 15px; color:red;">Error de red al cargar el informe general.</td></tr>';
+            }
+        }
+
         function exportReportToCSV() {
             if (!window.currentReportData || window.currentReportData.length === 0) {
                 alert('No hay datos para exportar.');
@@ -491,6 +547,81 @@
             // Format filename
             const cleanTitle = (window.currentReportTitle || 'reporte').replace(/[^a-z0-9]/gi, '_').toLowerCase();
             link.setAttribute("download", `informe_${cleanTitle}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function exportToWordHTML() {
+            if (!window.currentGeneralReportData) return;
+            
+            const data = window.currentGeneralReportData;
+            const stats = data.stats;
+            
+            let html = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <title>Informe General de Asamblea</title>
+                    <style>
+                        body { font-family: sans-serif; padding: 40px; }
+                        h1 { color: #333; text-align: center; }
+                        h2 { border-bottom: 2px solid #007bff; color: #007bff; margin-top: 30px; }
+                        .stats { background: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px; font-weight: bold; }
+                        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+                        th { background-color: #f2f2f2; }
+                    </style>
+                </head>
+                <body>
+                    <h1>Informe General de Asamblea</h1>
+                    <div class="stats">
+                        Quórum: ${stats.asistentes} aptos (${stats.coefAsamblea.toFixed(4)}%) de ${stats.totalAptos} totales.
+                    </div>
+            `;
+            
+            data.results.forEach(q => {
+                html += `<h2>Pregunta ${q.id}: ${q.pregunta}</h2>`;
+                html += `
+                    <table>
+                        <thead>
+                            <tr style="background-color: #f2f2f2;">
+                                <th>Opción</th>
+                                <th>Coeficiente Total</th>
+                                <th>Votos</th>
+                                <th>% del Quórum</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                q.opciones.forEach(opt => {
+                    html += `
+                        <tr>
+                            <td>${opt.opcion}</td>
+                            <td>${opt.coef.toFixed(4)}%</td>
+                            <td>${opt.votos}</td>
+                            <td>${((opt.coef / (stats.coefAsamblea || 1)) * 100).toFixed(2)}%</td>
+                        </tr>
+                    `;
+                });
+                
+                html += '</tbody></table>';
+            });
+            
+            html += `
+                <p style="text-align: right; margin-top: 50px; font-size: 12px; color: #666;">
+                    Generado el: ${new Date().toLocaleString()}
+                </p>
+                </body></html>
+            `;
+
+            const blob = new Blob(['\uFEFF', html], { type: 'application/msword' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'informe_general_asamblea.doc';
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);

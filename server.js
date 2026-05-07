@@ -283,6 +283,57 @@ app.get('/api/admin/questions/:id/report', adminAuth, async (req, res) => {
     }
 });
 
+// Obtener informe general con quórum y resultados de todas las preguntas (para admin)
+app.get('/api/admin/report/general', adminAuth, async (req, res) => {
+    try {
+        // 1. Estadísticas de quórum
+        const resAptos = await pool.query('SELECT COUNT(*) as total, SUM(coeficiente) as sum_coef FROM votacion.apartamentos');
+        const resAsiste = await pool.query('SELECT COUNT(*) as total, SUM(coeficiente) as sum_coef FROM votacion.apartamentos WHERE asiste = true');
+
+        const stats = {
+            totalAptos: parseInt(resAptos.rows[0].total),
+            coefTotal: parseFloat(resAptos.rows[0].sum_coef || 0),
+            asistentes: parseInt(resAsiste.rows[0].total),
+            coefAsamblea: parseFloat(resAsiste.rows[0].sum_coef || 0)
+        };
+
+        // 2. Resultados de todas las preguntas
+        const resPreguntas = await pool.query('SELECT id, pregunta FROM votacion.preguntas ORDER BY id ASC');
+        const questionsResults = [];
+
+        for (const pregunta of resPreguntas.rows) {
+            const queryRes = `
+                SELECT 
+                    o.opcion, 
+                    COUNT(v.id) as votos, 
+                    SUM(a.coeficiente) as coef
+                FROM votacion.opciones o
+                LEFT JOIN votacion.votos v ON o.id = v.opcion_id
+                LEFT JOIN votacion.apartamentos a ON v.apartamento_id = a.id
+                WHERE o.pregunta_id = $1
+                GROUP BY o.id, o.opcion
+                ORDER BY o.id ASC
+            `;
+            const resOpciones = await pool.query(queryRes, [pregunta.id]);
+            
+            questionsResults.push({
+                id: pregunta.id,
+                pregunta: pregunta.pregunta,
+                opciones: resOpciones.rows.map(opt => ({
+                    opcion: opt.opcion,
+                    votos: parseInt(opt.votos),
+                    coef: parseFloat(opt.coef || 0)
+                }))
+            });
+        }
+
+        res.json({ stats, results: questionsResults });
+    } catch (err) {
+        console.error('Error al generar informe general:', err);
+        res.status(500).json({ error: 'Error al generar el informe general' });
+    }
+});
+
 // Obtener lista de apartamentos (para admin)
 app.get('/api/admin/apartments', adminAuth, async (req, res) => {
     try {
